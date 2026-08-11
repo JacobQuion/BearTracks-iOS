@@ -16,6 +16,11 @@ final class DiningViewModel: ObservableObject {
     @Published var selectedDate: Date = Calendar.current.startOfDay(for: Date())
     @Published var selectedHall: DiningHall = DiningHall.all[0]
 
+    /// When a dish is tapped from the notable list, the meal label to
+    /// auto-expand once its hall menu opens. Consumed (cleared) by
+    /// `MenuResultView` after it expands the matching meal.
+    @Published var focusedMeal: String? = nil
+
     /// Diet chips the user requires; a dish must carry every one of them.
     @Published var activeDiets: Set<DietaryTag> = []
 
@@ -50,7 +55,7 @@ final class DiningViewModel: ObservableObject {
         "green olive", "butter", "granola", "cranberry", "flakes",
         "basmati rice", "basil", "black olive", "olive oil", "pickle",
         "spinach", "sliced cucumber", "cherry tomatoes", "sliced radish",
-        "raisins", "vinaigrette"
+        "raisins", "vinaigrette", "nutritional yeast"
     ]
 
     static func isHidden(_ name: String) -> Bool {
@@ -102,7 +107,7 @@ final class DiningViewModel: ObservableObject {
 
     /// Dishes that are always notable, even if they contain an excluded word
     /// (e.g. "Chicken Alfredo Sauce" carries "sauce" but is a real entrée).
-    static let notableAllowlist: [String] = ["chicken alfredo sauce"]
+    static let notableAllowlist: [String] = ["chicken alfredo sauce", "pesto alfredo sauce"]
 
     static func isNotable(_ name: String) -> Bool {
         let lowered = name.lowercased()
@@ -419,6 +424,7 @@ struct DiningView: View {
                 ForEach(dishes) { hit in
                     Button {
                         model.selectedHall = hit.hall
+                        model.focusedMeal = hit.meal
                         showingMenu = true
                     } label: {
                         notableRow(hit)
@@ -707,6 +713,18 @@ struct MenuResultView: View {
                 }
             }
         }
+        .onAppear { expandFocusedMeal() }
+    }
+
+    /// If the menu was opened by tapping a notable dish, expand the meal that
+    /// dish is served in so the user lands right on it. Clears the request so
+    /// it doesn't re-fire on a later, unrelated visit.
+    private func expandFocusedMeal() {
+        guard let focus = model.focusedMeal else { return }
+        if let match = periods.first(where: { $0.label == focus }) {
+            expandedMeals.insert(match.id)
+        }
+        model.focusedMeal = nil
     }
 
     // MARK: Menu
