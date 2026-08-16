@@ -178,6 +178,10 @@ struct EventsView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
+        // Pin the height so the greedy List sibling can't compress the bar to a
+        // near-zero strip — the old behavior left the chips clipped out of view
+        // while still (confusingly) tappable in the top sliver.
+        .frame(height: 56)
         .background(.bar)
     }
 
@@ -188,10 +192,15 @@ struct EventsView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
-                    // Matches the gym tab's "Join the virtual line" Berkeley-blue button.
+                    // Matches the Game tab's "Start round" button (the Cal-logo blue).
                     Capsule().fill(isSelected
                         ? Color(red: 0.075, green: 0.157, blue: 0.447)
-                        : Color.primary.opacity(0.10))
+                        : Color.primary.opacity(0.14))
+                )
+                .overlay(
+                    // A hairline keeps unselected chips legible in both appearances.
+                    Capsule().stroke(isSelected ? Color.clear : Color.primary.opacity(0.22),
+                                     lineWidth: 1)
                 )
                 .foregroundStyle(isSelected ? .white : .primary)
         }
