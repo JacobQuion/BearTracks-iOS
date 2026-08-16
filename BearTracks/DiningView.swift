@@ -250,6 +250,9 @@ struct DiningView: View {
             }
             .navigationTitle("Dining")
             .navigationBarTitleDisplayMode(.inline)
+            // Trim the List's default top inset so the day/search bar sits closer
+            // to the "Dining" title.
+            .contentMargins(.top, 6, for: .scrollContent)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
