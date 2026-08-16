@@ -85,8 +85,28 @@ struct LibraryService {
 
     static let hoursPageURL = URL(string: hoursPath)!
 
-    static func fetchHours() async throws -> LibraryFetchResult {
-        var request = URLRequest(url: hoursPageURL)
+    /// The URL for a given day. The hours page is a Drupal view whose exposed
+    /// date filter also accepts a `hours_date_select=YYYY-MM-DD` query
+    /// parameter, so any day can be fetched with a plain GET.
+    private static func hoursURL(for date: Date) -> URL {
+        var components = URLComponents(string: hoursPath)!
+        components.queryItems = [
+            URLQueryItem(name: "hours_date_select", value: dateFormatter.string(from: date))
+        ]
+        return components.url ?? hoursPageURL
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "America/Los_Angeles")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    static func fetchHours(for date: Date = Date()) async throws -> LibraryFetchResult {
+        var request = URLRequest(url: hoursURL(for: date))
         request.timeoutInterval = 30
         // The site is a Drupal front end; a real UA keeps it from serving a
         // stripped page to an unknown client.
@@ -199,14 +219,16 @@ struct LibraryService {
         return lines.joined(separator: "\n")
     }
 
-    private static func cleanText(_ text: String) -> String {
+    // Pure string helpers: `nonisolated` so they can be passed to `.map` and
+    // called from any context (the type builds under MainActor default isolation).
+    nonisolated private static func cleanText(_ text: String) -> String {
         var out = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         out = decodeEntities(out)
         out = out.replacingOccurrences(of: "[ \t\n]+", with: " ", options: .regularExpression)
         return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func decodeEntities(_ text: String) -> String {
+    nonisolated private static func decodeEntities(_ text: String) -> String {
         var out = text
         let map: [String: String] = [
             "&amp;": "&", "&#038;": "&", "&quot;": "\"", "&#034;": "\"",
