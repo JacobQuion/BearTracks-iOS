@@ -16,6 +16,32 @@ final class LibraryViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var openNowOnly = false
 
+    @Published var selectedDate: Date = Calendar.current.startOfDay(for: Date())
+
+    /// Whether the selected day is today, which is when "open now" and live
+    /// status still make sense.
+    var isViewingToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+
+    /// A week-long window around today, matching the Dining tab's day picker.
+    var selectableDates: [Date] {
+        (-1...6).compactMap {
+            Calendar.current.date(byAdding: .day, value: $0,
+                                  to: Calendar.current.startOfDay(for: Date()))
+        }
+    }
+
+    var dateLabel: String { Self.label(for: selectedDate) }
+
+    static func label(for date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return "Today" }
+        if calendar.isDateInTomorrow(date) { return "Tomorrow" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, MMM d"
+        return formatter.string(from: date)
+    }
+
     /// Branches matching the search box and the "open now" toggle, sorted with
     /// open ones first and then alphabetically.
     var filtered: [Library] {
@@ -38,14 +64,15 @@ final class LibraryViewModel: ObservableObject {
 
     var updatedText: String? {
         guard let fetchedAt else { return nil }
-        return "Updated \(fetchedAt.formatted(date: .omitted, time: .shortened)) · today's hours"
+        let day = isViewingToday ? "today's hours" : "hours for \(dateLabel.lowercased())"
+        return "Updated \(fetchedAt.formatted(date: .omitted, time: .shortened)) · \(day)"
     }
 
     func load() async {
         isLoading = true
         errorMessage = nil
         do {
-            let result = try await LibraryService.fetchHours()
+            let result = try await LibraryService.fetchHours(for: selectedDate)
             libraries = result.libraries
             fetchedAt = result.fetchedAt
         } catch {
@@ -62,18 +89,24 @@ struct LibraryView: View {
     @StateObject private var model = LibraryViewModel()
     @State private var selected: Library?
 
+    /// True while re-fetching hours for a freshly picked day, which drives the
+    /// animated skeleton so the switch reads as "loading" rather than stale.
+    @State private var isSwitchingDay = false
+
     var body: some View {
         NavigationStack {
             Group {
-                if model.libraries.isEmpty && model.isLoading {
-                    ProgressView("Loading hours")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if (model.libraries.isEmpty && model.isLoading) || isSwitchingDay {
+                    LibraryLoadingView(dayLabel: model.dateLabel)
+                        .transition(.opacity)
                 } else if let errorMessage = model.errorMessage, model.libraries.isEmpty {
                     errorState(errorMessage)
                 } else {
                     list
+                        .transition(.opacity)
                 }
             }
+            .animation(.easeInOut(duration: 0.25), value: isSwitchingDay)
             .navigationTitle("Libraries")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -85,26 +118,89 @@ struct LibraryView: View {
                     }
                 }
             }
-            .searchable(text: $model.searchText, prompt: "Search libraries")
             .navigationDestination(item: $selected) { library in
                 LibraryDetailView(library: library)
             }
             .refreshable { await model.load() }
+            .onChange(of: model.selectedDate) { _, _ in
+                isSwitchingDay = true
+                Task {
+                    await model.load()
+                    isSwitchingDay = false
+                }
+            }
             .task {
                 if model.libraries.isEmpty { await model.load() }
             }
         }
     }
 
+    private var isSearching: Bool {
+        !model.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// A single top row mirroring the Dining tab: a compact day selector on the
+    /// left and an inline library search field on the right.
+    private var searchDayBar: some View {
+        HStack(spacing: 10) {
+            Menu {
+                Picker("Day", selection: $model.selectedDate) {
+                    ForEach(model.selectableDates, id: \.self) { date in
+                        Text(LibraryViewModel.label(for: date)).tag(date)
+                    }
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "calendar")
+                        .font(.footnote)
+                    Text(model.dateLabel)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(Capsule().fill(Color.primary.opacity(0.08)))
+                .foregroundStyle(.primary)
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                TextField("Search libraries", text: $model.searchText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                if isSearching {
+                    Button {
+                        model.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(Capsule().fill(Color.primary.opacity(0.08)))
+        }
+    }
+
     private var list: some View {
         List {
             Section {
+                searchDayBar
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    .listRowBackground(Color.clear)
+
                 Picker("Show", selection: $model.openNowOnly) {
                     Text("All (\(model.libraries.count))").tag(false)
-                    Text("Open now (\(model.openCount))").tag(true)
+                    Text("\(model.isViewingToday ? "Open now" : "Open") (\(model.openCount))").tag(true)
                 }
                 .pickerStyle(.segmented)
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 2, trailing: 16))
                 .listRowBackground(Color.clear)
             }
 
@@ -123,6 +219,8 @@ struct LibraryView: View {
                 }
             }
         }
+        // Tighten the gap between the filter section and the first library card.
+        .listSectionSpacing(8)
     }
 
     private func row(for library: Library) -> some View {
@@ -173,6 +271,74 @@ struct LibraryView: View {
         }
         .padding(30)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Loading
+
+/// An animated skeleton shown while hours load — either on first launch or when
+/// the user picks a different day. Placeholder cards mirror the real row layout
+/// and a light sweep glides across them so the wait reads as lively, not frozen.
+struct LibraryLoadingView: View {
+    let dayLabel: String
+
+    /// Drives the sweeping highlight; animates continuously while visible.
+    @State private var sweep = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Loading hours for \(dayLabel.lowercased())")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 4)
+                .padding(.top, 8)
+
+                ForEach(0..<4, id: \.self) { _ in
+                    card
+                }
+            }
+            .padding(16)
+        }
+        .disabled(true)
+        .onAppear {
+            withAnimation(.linear(duration: 1.15).repeatForever(autoreverses: false)) {
+                sweep = true
+            }
+        }
+    }
+
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            block(height: 130)
+            block(height: 14).frame(width: 170)
+            block(height: 12).frame(width: 110)
+        }
+        .padding(14)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func block(height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color.primary.opacity(0.10))
+            .frame(height: height)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(
+                GeometryReader { geo in
+                    LinearGradient(
+                        colors: [.clear, Color.white.opacity(0.22), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: geo.size.width * 0.5)
+                    .offset(x: sweep ? geo.size.width : -geo.size.width * 0.5)
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
