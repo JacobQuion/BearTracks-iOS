@@ -49,6 +49,17 @@ struct Library: Identifiable, Hashable {
     }
 
     var statusText: String { isOpen ? "Open" : "Closed" }
+
+    /// The name shown in the UI. A couple of branches get a friendlier label
+    /// than the site's official name.
+    var displayName: String {
+        switch name {
+        case "Engineering & Mathematical Sciences Library":
+            return "Grimes (Engineering & Mathematical Sciences Library)"
+        default:
+            return name
+        }
+    }
 }
 
 // MARK: - Errors
@@ -224,6 +235,10 @@ struct LibraryService {
     nonisolated private static func cleanText(_ text: String) -> String {
         var out = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         out = decodeEntities(out)
+        // The hours line sometimes glues a note onto the closing time
+        // (e.g. "5 p.m.Cal ID required"); restore the missing space.
+        out = out.replacingOccurrences(of: "([ap]\\.m\\.)([A-Za-z])", with: "$1 $2",
+                                       options: [.regularExpression, .caseInsensitive])
         out = out.replacingOccurrences(of: "[ \t\n]+", with: " ", options: .regularExpression)
         return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }

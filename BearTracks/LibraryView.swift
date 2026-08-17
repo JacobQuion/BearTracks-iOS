@@ -42,8 +42,25 @@ final class LibraryViewModel: ObservableObject {
         return formatter.string(from: date)
     }
 
-    /// Branches matching the search box and the "open now" toggle, sorted with
-    /// open ones first and then alphabetically.
+    /// The marquee branches, pinned to the top of the list in this order
+    /// regardless of the usual open-first sort.
+    static let pinnedNames = [
+        "Doe Library",
+        "Main (Gardner) Stacks",
+        "Business Library",
+        "Engineering & Mathematical Sciences Library",  // shown as "Grimes (…)"
+        "East Asian Library"
+    ]
+
+    /// A library's position among the pinned branches, or a value past the end
+    /// for everything else — so pinned ones sort first, in listed order.
+    private func pinnedRank(_ library: Library) -> Int {
+        Self.pinnedNames.firstIndex(of: library.name) ?? Self.pinnedNames.count
+    }
+
+    /// Branches matching the search box and the "open now" toggle. Doe, Main
+    /// Stacks and Business are pinned to the top; the rest follow with open ones
+    /// first and then alphabetically.
     var filtered: [Library] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
@@ -52,9 +69,12 @@ final class LibraryViewModel: ObservableObject {
                 if openNowOnly && !library.isOpen { return false }
                 guard !query.isEmpty else { return true }
                 return library.name.lowercased().contains(query)
+                    || library.displayName.lowercased().contains(query)
                     || library.address.lowercased().contains(query)
             }
             .sorted { lhs, rhs in
+                let lhsRank = pinnedRank(lhs), rhsRank = pinnedRank(rhs)
+                if lhsRank != rhsRank { return lhsRank < rhsRank }
                 if lhs.isOpen != rhs.isOpen { return lhs.isOpen && !rhs.isOpen }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
@@ -194,6 +214,7 @@ struct LibraryView: View {
                 searchDayBar
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
 
                 Picker("Show", selection: $model.openNowOnly) {
                     Text("All (\(model.libraries.count))").tag(false)
@@ -202,6 +223,7 @@ struct LibraryView: View {
                 .pickerStyle(.segmented)
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 2, trailing: 16))
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             Section {
@@ -229,7 +251,7 @@ struct LibraryView: View {
 
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(library.name)
+                    Text(library.displayName)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.primary)
 
@@ -344,6 +366,64 @@ struct LibraryLoadingView: View {
 
 // MARK: - Image
 
+/// A small in-memory cache of decoded branch photos, keyed by URL. Backed by
+/// `NSCache`, so it evicts itself under memory pressure. Lets an already-seen
+/// photo render immediately when its row is rebuilt (scrolling, day changes)
+/// instead of dropping back to a placeholder while it re-decodes.
+@MainActor
+enum ImageMemoryCache {
+    private static let cache = NSCache<NSURL, UIImage>()
+
+    static func image(for url: URL) -> UIImage? {
+        cache.object(forKey: url as NSURL)
+    }
+
+    static func store(_ image: UIImage, for url: URL) {
+        cache.setObject(image, forKey: url as NSURL)
+    }
+}
+
+/// Loads and displays a remote image, serving already-decoded ones from
+/// `ImageMemoryCache` synchronously so there's no placeholder flash on reuse.
+/// Falls back to the `placeholder` while a first-time image downloads.
+struct CachedImage<Placeholder: View>: View {
+    private let url: URL?
+    private let placeholder: Placeholder
+    @State private var image: UIImage?
+
+    init(url: URL?, @ViewBuilder placeholder: () -> Placeholder) {
+        self.url = url
+        self.placeholder = placeholder()
+        // Seed synchronously from the cache so a known image shows on first frame.
+        _image = State(initialValue: url.flatMap { ImageMemoryCache.image(for: $0) })
+    }
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                placeholder
+            }
+        }
+        .task(id: url) { await load() }
+    }
+
+    private func load() async {
+        guard let url, image == nil else { return }
+        if let cached = ImageMemoryCache.image(for: url) {
+            image = cached
+            return
+        }
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
+              let decoded = UIImage(data: data) else { return }
+        ImageMemoryCache.store(decoded, for: url)
+        image = decoded
+    }
+}
+
 /// A branch photo cropped to a uniform size, so every row and header lines up
 /// regardless of the source image's dimensions. Shows a themed placeholder
 /// while loading or if the image is missing.
@@ -356,19 +436,10 @@ struct LibraryImage: View {
             .fill(Theme.card)
             .frame(height: height)
             .overlay {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .empty:
-                        ProgressView()
-                    default:
-                        Image(systemName: "books.vertical.fill")
-                            .font(.system(size: 30))
-                            .foregroundStyle(Theme.californiaGold.opacity(0.6))
-                    }
+                CachedImage(url: url) {
+                    Image(systemName: "books.vertical.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle(Theme.californiaGold.opacity(0.6))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -436,7 +507,7 @@ struct LibraryDetailView: View {
                 }
             }
         }
-        .navigationTitle(library.name)
+        .navigationTitle(library.displayName)
         .navigationBarTitleDisplayMode(.inline)
     }
 
