@@ -106,19 +106,22 @@ struct EventsView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                typeBar
-
-                Group {
-                    if model.isLoading && model.events.isEmpty {
-                        ProgressView("Loading campus events")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if let message = model.errorMessage {
-                        errorState(message)
-                    } else {
-                        eventList
-                    }
+            Group {
+                if model.isLoading && model.events.isEmpty {
+                    ProgressView("Loading campus events")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let message = model.errorMessage {
+                    errorState(message)
+                } else {
+                    eventList
                 }
+            }
+            // Pinning the filter bar as a top safe-area inset (rather than a
+            // sibling in a VStack) keeps it reliably laid out across tab switches
+            // and alongside `.searchable`, where the old VStack could drop the
+            // chips after navigating away and back.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                typeBar
             }
             .navigationTitle("Campus Events")
             .navigationBarTitleDisplayMode(.inline)
@@ -159,10 +162,9 @@ struct EventsView: View {
 
     // MARK: - Category filter
 
-    // Rendered from first layout (not gated on the events load) so the bar and
-    // its "All" chip are present and tappable the moment the tab opens; the
-    // category chips fill in as soon as the feed arrives. Inserting this inset
-    // only after the fetch is what previously ate the first taps.
+    // Hosted via `.safeAreaInset` so the bar and its "All" chip are present and
+    // tappable the moment the tab opens; the category chips fill in as soon as
+    // the feed arrives.
     private var typeBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
