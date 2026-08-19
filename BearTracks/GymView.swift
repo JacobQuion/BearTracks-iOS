@@ -24,7 +24,8 @@ enum RSF {
     static let hoursPage = URL(string: "https://recwell.berkeley.edu/facilities/recreational-sports-facility-rsf/rsf-hours/")!
     static let cardioMeterPage = URL(string: "https://recwell.berkeley.edu/facilities/recreational-sports-facility-rsf/rsf-cardio-equipment-usage-meter/")!
     static let facilityPage = URL(string: "https://recwell.berkeley.edu/facilities/recreational-sports-facility-rsf/")!
-    static let maps = URL(string: "https://maps.apple.com/?q=Recreational+Sports+Facility&ll=37.868578,-122.265017")!
+    /// Native Apple Maps directions to the RSF.
+    static let maps = URL(string: "https://maps.apple.com/?daddr=2301+Bancroft+Way,+Berkeley,+CA+94720&ll=37.868578,-122.265017")!
 
     static let address = "2301 Bancroft Way, Berkeley, CA 94720"
 }
@@ -313,12 +314,38 @@ struct GymView: View {
             Divider().padding(.leading, 44)
             row(icon: "clock", title: "RSF hours", url: RSF.hoursPage)
             Divider().padding(.leading, 44)
-            row(icon: "mappin.and.ellipse", title: RSF.address, url: RSF.maps)
+            mapsRow
             Divider().padding(.leading, 44)
             row(icon: "building.2", title: "About the facility", url: RSF.facilityPage)
         }
         .padding(.vertical, 4)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// A directions row that makes clear it opens the native Apple Maps app,
+    /// with the RSF's street address shown beneath.
+    private var mapsRow: some View {
+        Link(destination: RSF.maps) {
+            HStack(spacing: 12) {
+                Image(systemName: "map.fill")
+                    .foregroundStyle(Theme.californiaGold)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Directions in Apple Maps")
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                    Text(RSF.address)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+        }
     }
 
     private func row(icon: String, title: String, url: URL) -> some View {
