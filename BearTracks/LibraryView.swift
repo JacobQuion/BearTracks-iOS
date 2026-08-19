@@ -496,8 +496,8 @@ struct LibraryDetailView: View {
             }
 
             Section {
-                if let mapsURL = library.mapsURL {
-                    linkRow(icon: "map", title: "Directions", url: mapsURL)
+                if let appleMapsURL {
+                    linkRow(icon: "map.fill", title: "Directions in Apple Maps", url: appleMapsURL)
                 }
                 if let phone = library.phone, let telURL = URL(string: "tel:\(phone.filter { $0.isNumber })") {
                     linkRow(icon: "phone", title: phone, url: telURL)
@@ -509,6 +509,16 @@ struct LibraryDetailView: View {
         }
         .navigationTitle(library.displayName)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// A native Apple Maps directions link to the branch, built from its name and
+    /// address so users aren't forced into a third-party maps app.
+    private var appleMapsURL: URL? {
+        let cleanedAddress = library.address.replacingOccurrences(of: "\n", with: ", ")
+        let destination = cleanedAddress.isEmpty ? library.name : "\(library.name), \(cleanedAddress)"
+        var components = URLComponents(string: "http://maps.apple.com/")
+        components?.queryItems = [URLQueryItem(name: "daddr", value: destination)]
+        return components?.url
     }
 
     private func linkRow(icon: String, title: String, url: URL) -> some View {
