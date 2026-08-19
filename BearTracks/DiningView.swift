@@ -735,6 +735,15 @@ struct MenuResultView: View {
     private var menuList: some View {
         List {
             Section {
+                DiningImage(url: model.selectedHall.imageURL,
+                            assetName: model.selectedHall.assetName,
+                            height: 170)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
+            Section {
                 filterBar
                     .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 2, trailing: 12))
                     .listRowBackground(Color.clear)
