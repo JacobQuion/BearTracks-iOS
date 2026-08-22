@@ -273,7 +273,7 @@ struct DiningView: View {
                             Label("Diagnostics", systemImage: "stethoscope")
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "gearshape")
                     }
                 }
             }
