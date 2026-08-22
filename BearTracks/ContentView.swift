@@ -65,11 +65,9 @@ struct ContentView: View {
 /// The branded launch screen: the BearTracks logo centered on its own navy,
 /// with a small "not affiliated" disclaimer pinned to the bottom.
 struct SplashView: View {
-    /// The logo's own navy background. The artwork's raw pixel is (25, 39, 75)
-    /// but it carries an embedded display profile, so the color-managed on-screen
-    /// value is sRGB (18, 39, 77) — matching that here makes the page and logo
-    /// blend seamlessly instead of leaving a faint square around the logo.
-    private static let logoNavy = Color(red: 0.0706, green: 0.1529, blue: 0.3020)
+    /// The logo's own navy background, sampled from the artwork (sRGB, no color
+    /// profile) so the page and logo blend seamlessly with no faint square.
+    private static let logoNavy = Color(red: 0.0353, green: 0.1255, blue: 0.2745)
 
     var body: some View {
         ZStack {
