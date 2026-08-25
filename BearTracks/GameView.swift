@@ -49,7 +49,7 @@ struct GameView: View {
                 controlButton
             }
             .padding(16)
-            .navigationTitle("Bear Whac-A-Mole!")
+            .navigationTitle("Track Whac-A-Mole!")
             .navigationBarTitleDisplayMode(.inline)
             .overlay {
                 if showCelebration {

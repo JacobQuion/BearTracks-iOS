@@ -15,6 +15,10 @@ struct ContentView: View {
     /// Defaults to dark; persisted across launches.
     @AppStorage("isDarkMode") private var isDarkMode = true
 
+    /// Owned here (not inside LibraryView) so its hours can start fetching during
+    /// the splash — the Library tab is then already loaded when the user opens it.
+    @StateObject private var libraryModel = LibraryViewModel()
+
     var body: some View {
         ZStack {
             tabs
@@ -26,6 +30,8 @@ struct ContentView: View {
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
         .task {
+            // Prefetch library hours up front, independently of the splash timer.
+            Task { await libraryModel.load() }
             try? await Task.sleep(for: .seconds(1.6))
             withAnimation(.easeOut(duration: 0.45)) { showingSplash = false }
         }
@@ -38,7 +44,7 @@ struct ContentView: View {
                     Label("Dining", systemImage: "fork.knife")
                 }
 
-            LibraryView()
+            LibraryView(model: libraryModel)
                 .tabItem {
                     Label("Library", systemImage: "books.vertical")
                 }
@@ -67,7 +73,7 @@ struct ContentView: View {
 struct SplashView: View {
     /// The logo's own navy background, sampled from the artwork (sRGB, no color
     /// profile) so the page and logo blend seamlessly with no faint square.
-    private static let logoNavy = Color(red: 0.0353, green: 0.1255, blue: 0.2745)
+    private static let logoNavy = Color(red: 0.0118, green: 0.1294, blue: 0.2784)
 
     var body: some View {
         ZStack {

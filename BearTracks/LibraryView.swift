@@ -106,7 +106,8 @@ final class LibraryViewModel: ObservableObject {
 // MARK: - Screen
 
 struct LibraryView: View {
-    @StateObject private var model = LibraryViewModel()
+    /// Supplied by `ContentView`, which starts loading it during the splash.
+    @ObservedObject var model: LibraryViewModel
     @State private var selected: Library?
 
     /// True while re-fetching hours for a freshly picked day, which drives the
@@ -150,7 +151,9 @@ struct LibraryView: View {
                 }
             }
             .task {
-                if model.libraries.isEmpty { await model.load() }
+                // The prefetch in ContentView usually covers this; only load here
+                // if it hasn't run (and isn't already in flight).
+                if model.libraries.isEmpty && !model.isLoading { await model.load() }
             }
         }
     }
@@ -539,5 +542,5 @@ struct LibraryDetailView: View {
 }
 
 #Preview {
-    LibraryView()
+    LibraryView(model: LibraryViewModel())
 }
