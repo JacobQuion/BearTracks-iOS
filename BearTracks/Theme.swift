@@ -6,21 +6,21 @@
 import SwiftUI
 import CoreLocation
 
+// An independent dark-blue identity — deliberately not UC Berkeley's official navy +
+// California-gold, so the app doesn't resemble official university branding.
+// (Property names are historical; their values are the app's own palette.)
 enum Theme {
-    /// Official UC Berkeley "Berkeley Blue". Dark, so it's used for fills that
-    /// sit behind white text rather than for text itself.
-    static let berkeleyBlue = Color(red: 0.0, green: 0.196, blue: 0.384)
+    /// Deep blue, for strong fills that sit behind white text.
+    static let berkeleyBlue = Color(red: 0.055, green: 0.102, blue: 0.290)
 
-    /// Official UC Berkeley "California Gold". The app runs in dark mode, so
-    /// this carries headings and labels where the blue would disappear.
-    static let californiaGold = Color(red: 0.992, green: 0.710, blue: 0.082)
+    /// The primary accent — carries headings, labels, and icons on the dark UI.
+    static let californiaGold = Color(red: 0.243, green: 0.415, blue: 0.800)
 
-    /// "Founders Rock", Berkeley's mid blue. Readable on a dark background,
-    /// so it drives buttons and controls.
-    static let foundersRock = Color(red: 0.231, green: 0.494, blue: 0.631)
+    /// Mid blue. Readable on a dark background, so it drives buttons and controls.
+    static let foundersRock = Color(red: 0.145, green: 0.259, blue: 0.588)
 
-    /// "Lawrence", the bright accent blue.
-    static let lawrence = Color(red: 0.0, green: 0.690, blue: 0.855)
+    /// The bright accent blue.
+    static let lawrence = Color(red: 0.118, green: 0.400, blue: 0.850)
 
     // Semantic roles, so intent is obvious at the call site.
     static let heading = californiaGold
