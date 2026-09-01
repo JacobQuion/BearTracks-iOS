@@ -42,9 +42,9 @@ struct GameView: View {
                     }
                 }
 
-                Spacer()
-
                 controlButton
+
+                Spacer()
             }
             .padding(16)
             .navigationBarTitleDisplayMode(.inline)
@@ -60,7 +60,7 @@ struct GameView: View {
                             .background(Theme.berkeleyBlue, in: RoundedRectangle(cornerRadius: 6))
                         Text("What-A-Mole!")
                             .font(.headline)
-                            .foregroundStyle(Theme.heading)
+                            .foregroundStyle(Theme.readableBlue)
                     }
                 }
             }
@@ -87,7 +87,7 @@ struct GameView: View {
 
                 Text("New High Score!")
                     .font(.title2.weight(.bold))
-                    .foregroundStyle(Theme.heading)
+                    .foregroundStyle(Theme.readableBlue)
 
                 Text("\(bestScore)")
                     .font(.system(size: 56, weight: .heavy, design: .rounded).monospacedDigit())
@@ -147,7 +147,7 @@ struct GameView: View {
                 .foregroundStyle(.secondary)
             Text(value)
                 .font(.title2.weight(.bold).monospacedDigit())
-                .foregroundStyle(Theme.heading)
+                .foregroundStyle(Theme.readableBlue)
         }
     }
 
