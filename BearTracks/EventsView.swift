@@ -118,23 +118,7 @@ struct EventsView: View {
             }
             .navigationTitle("Campus Events")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $model.searchText, prompt: "Search events")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Picker("Range", selection: $model.range) {
-                            ForEach(EventsViewModel.EventRange.allCases) { range in
-                                Text(range.rawValue).tag(range)
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(model.range.rawValue)
-                            Image(systemName: "chevron.down").font(.caption2)
-                        }
-                        .font(.subheadline.weight(.medium))
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await model.load() }
@@ -151,6 +135,36 @@ struct EventsView: View {
                 if model.events.isEmpty { await model.load() }
             }
         }
+    }
+
+    // MARK: - Search
+
+    private var isSearching: Bool {
+        !model.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// An inline search field sitting above the category chips, matching the
+    /// capsule style used on the Dining and Library tabs.
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            TextField("Search events", text: $model.searchText)
+                .autocorrectionDisabled()
+            if isSearching {
+                Button {
+                    model.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(Capsule().fill(Color.primary.opacity(0.08)))
     }
 
     // MARK: - Category filter
@@ -202,6 +216,11 @@ struct EventsView: View {
     private var eventList: some View {
         List {
             Section {
+                searchField
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
                 typeBar
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .listRowBackground(Color.clear)
@@ -233,6 +252,11 @@ struct EventsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        // Trim the List's default top inset so the search bar sits closer to
+        // the "Campus Events" title.
+        .contentMargins(.top, 6, for: .scrollContent)
+        // Tighten the gap between the search/chips section and the first event.
+        .listSectionSpacing(8)
     }
 
     private func errorState(_ message: String) -> some View {
