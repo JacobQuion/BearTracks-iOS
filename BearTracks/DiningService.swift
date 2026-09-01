@@ -170,6 +170,9 @@ struct MenuItem: Identifiable, Hashable {
     let name: String
     let tags: Set<DietaryTag>
     let carbon: CarbonRating?
+    /// The menu station this dish is served at, e.g. "Center Plate" or
+    /// "Griddle/Grill". Empty when Cal Dining didn't group the item.
+    let station: String
     /// Keys for the nutrition lookup (Cal Dining's get_recipe_details AJAX).
     let location: String
     let recipeId: String
@@ -179,12 +182,35 @@ struct MenuItem: Identifiable, Hashable {
     var allergens: [DietaryTag] { DietaryTag.allergens.filter { tags.contains($0) } }
 }
 
+/// A run of dishes served together at one menu station within a meal, e.g.
+/// "Center Plate" or "Griddle/Grill".
+struct MenuStation: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let items: [MenuItem]
+}
+
 struct MenuPeriod: Identifiable, Hashable {
     let id = UUID()
     let name: String
     let items: [MenuItem]
 
     var kind: MealKind { MealKind(periodName: name) }
+
+    /// Groups a set of this period's dishes back into their menu stations,
+    /// preserving the order Cal Dining served them in. Items sharing a station
+    /// name are collected together; items with no station fall under an empty
+    /// name (shown without a header). Pass the already-filtered items so the
+    /// grouping reflects what's actually on screen.
+    static func groupedByStation(_ items: [MenuItem]) -> [MenuStation] {
+        var order: [String] = []
+        var buckets: [String: [MenuItem]] = [:]
+        for item in items {
+            if buckets[item.station] == nil { order.append(item.station) }
+            buckets[item.station, default: []].append(item)
+        }
+        return order.map { MenuStation(name: $0, items: buckets[$0] ?? []) }
+    }
 
     /// The period name with a leading semester word stripped, so
     /// "Summer - Brunch" reads as "Brunch" and a bare "Summer" reads as empty.
@@ -380,14 +406,10 @@ struct DiningHall: Identifiable, Hashable {
               imageURL: image("2024/11/restaurants-slide-eateries-1.jpg")),
         .init(id: "browns", name: "Brown's", isResidential: false,
               imageURL: image("2025/01/restaurants-slide-browns-1-scaled-700x400.jpg")),
-        .init(id: "bearmarket", name: "Bear Market", isResidential: false,
-              imageURL: image("4.15.26_UCDining1012-bearMarket1-700x400.jpg")),
-        .init(id: "cubmarket", name: "Cub Market", isResidential: false,
-              imageURL: image("4.15.26_UCDining3135-cubMarket1-700x400.jpg")),
         .init(id: "localxdesign", name: "Local x Design", isResidential: false,
               imageURL: image("2024/11/restaurants-slide-local-1.jpg")),
-        .init(id: "theden", name: "The Den", isResidential: false,
-              imageURL: image("4.15.26_UCDining2033-den1-700x400.jpg"))
+        .init(id: "gateway", name: "Gateway Café", isResidential: false,
+              imageURL: image("restaurants-gateway-7.30.26_KL-1038.jpg"))
     ]
 
     /// Loose comparison so "Clark_Kerr_Campus" from the page matches "Clark Kerr Campus".
@@ -515,7 +537,25 @@ struct DiningService {
                 + blocks(in: block.body, markerClass: "period-name")
 
             let periods: [MenuPeriod] = periodBlocks.compactMap { periodBlock in
-                let items = recipeItems(in: periodBlock.body)
+                // Cal Dining groups a period's dishes into stations (cat-name
+                // blocks like "Center Plate"). Parse each station's items with
+                // its name attached; if a period has no stations, treat the
+                // whole body as one unnamed group. Dedup stays period-wide so a
+                // dish listed twice across stations only shows once.
+                let stations = stationBlocks(in: periodBlock.body)
+                let sources = stations.isEmpty
+                    ? [(name: "", body: periodBlock.body)]
+                    : stations
+
+                var seen = Set<String>()
+                var items: [MenuItem] = []
+                for station in sources {
+                    for item in recipeItems(in: station.body, station: station.name)
+                    where seen.insert(item.name.lowercased()).inserted {
+                        items.append(item)
+                    }
+                }
+
                 guard !items.isEmpty else { return nil }
                 return MenuPeriod(name: periodBlock.name, items: items)
             }
@@ -581,10 +621,40 @@ struct DiningService {
             .trimmingCharacters(in: .whitespaces)
     }
 
+    /// Splits a period's body into its menu stations. Cal Dining wraps each
+    /// station in `<div class="cat-name"><span>Station Name</span><ul>…</ul>`,
+    /// so we cut the body at each `cat-name` marker and read the station name
+    /// from the first `<span>` that follows. Everything up to the next marker
+    /// is that station's body, ready for `recipeItems`.
+    private static func stationBlocks(in html: String) -> [(name: String, body: String)] {
+        let ns = html as NSString
+        guard let regex = try? NSRegularExpression(pattern: "class\\s*=\\s*[\"']cat-name[\"']",
+                                                    options: [.caseInsensitive]) else {
+            return []
+        }
+        let matches = regex.matches(in: html, range: NSRange(location: 0, length: ns.length))
+        guard !matches.isEmpty else { return [] }
+
+        var result: [(name: String, body: String)] = []
+        for (index, match) in matches.enumerated() {
+            let start = match.range.location + match.range.length
+            let end = index + 1 < matches.count
+                ? matches[index + 1].range.location
+                : ns.length
+            guard end > start else { continue }
+            let body = ns.substring(with: NSRange(location: start, length: end - start))
+            let name = firstMatch(in: body, pattern: "<span[^>]*>([^<]{1,80})</span>")
+                .map { decodeEntities($0).trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
+            result.append((name: name, body: body))
+        }
+        return result
+    }
+
     /// Pulls each dish out of `<li class="recip …" data-id=… data-menuid=…>
     /// <span>Name</span> …icons… </li>`, capturing its dietary tags, carbon
-    /// rating and the keys needed to look up full nutrition later.
-    private static func recipeItems(in html: String) -> [MenuItem] {
+    /// rating and the keys needed to look up full nutrition later. `station` is
+    /// the menu station these items belong to, stamped onto each dish.
+    private static func recipeItems(in html: String, station: String) -> [MenuItem] {
         let pattern = "<li class=\"(recip[^\"]*)\"([^>]*)>\\s*<span[^>]*>([^<]{1,160})</span>(.*?)</li>"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) else {
             return []
@@ -613,6 +683,7 @@ struct DiningService {
                 name: name,
                 tags: tags,
                 carbon: carbon,
+                station: station,
                 location: attributeValue("data-location", in: attributes) ?? "",
                 recipeId: attributeValue("data-id", in: attributes) ?? "",
                 menuId: attributeValue("data-menuid", in: attributes) ?? ""
