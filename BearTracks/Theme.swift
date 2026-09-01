@@ -22,9 +22,22 @@ enum Theme {
     /// The bright accent blue.
     static let lawrence = Color(red: 0.118, green: 0.400, blue: 0.850)
 
+    /// A bright sky blue, used for the loading status bar above the nav bar.
+    static let skyBlue = Color(red: 0.35, green: 0.72, blue: 1.0)
+
     // Semantic roles, so intent is obvious at the call site.
-    static let heading = californiaGold
+    static let heading = berkeleyBlue
     static let control = foundersRock
+
+    /// A lighter, high-contrast blue for heading/label text that sits on the
+    /// dark card surfaces (the game and gym tabs). Brightens in dark
+    /// mode so the text reads clearly, and deepens in light mode to stay legible
+    /// on the pale card gray — unlike `heading`, which is too dark on cards.
+    static let readableBlue = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.45, green: 0.64, blue: 1.0, alpha: 1)
+            : UIColor(red: 0.12, green: 0.30, blue: 0.75, alpha: 1)
+    })
 
     /// Card surface that adapts to the chosen appearance: the original dark
     /// charcoal in dark mode, and a soft light gray in light mode so cards read
