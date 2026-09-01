@@ -60,7 +60,9 @@ struct OccupancyScraper: UIViewRepresentable {
         weak var webView: WKWebView?
         private var timer: Timer?
         /// Scrapes to run at these delays after a load, to catch the JS render.
-        private let scrapeDelays: [TimeInterval] = [1.5, 3.5, 7.0]
+        /// Front-loaded so the first reading can appear as soon as the widget
+        /// paints, with later attempts as a fallback if it renders slowly.
+        private let scrapeDelays: [TimeInterval] = [0.5, 1.2, 2.5, 4.0, 6.5]
 
         init(_ parent: OccupancyScraper) { self.parent = parent }
 
@@ -296,9 +298,7 @@ struct GymView: View {
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    // Matches the game tab's "Start round" Berkeley-blue button.
-                    .background(Color(red: 0.075, green: 0.157, blue: 0.447),
-                                in: RoundedRectangle(cornerRadius: 10))
+                    .background(Theme.control, in: RoundedRectangle(cornerRadius: 10))
                     .foregroundStyle(.white)
             }
         }
