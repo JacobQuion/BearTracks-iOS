@@ -222,7 +222,7 @@ struct GymView: View {
                     .foregroundStyle(Theme.californiaGold)
                 Text("Crowd Meter")
                     .font(.headline)
-                    .foregroundStyle(Theme.heading)
+                    .foregroundStyle(Theme.readableBlue)
             }
 
             ZStack {
@@ -286,7 +286,7 @@ struct GymView: View {
                     .foregroundStyle(Theme.californiaGold)
                 Text("Packed?")
                     .font(.headline)
-                    .foregroundStyle(Theme.heading)
+                    .foregroundStyle(Theme.readableBlue)
             }
 
             Text("RecWell opens a virtual line whenever the weight room hits 95% capacity. Join from here and you'll get a text when it's your turn.")
