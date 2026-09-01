@@ -55,7 +55,10 @@ final class DiningViewModel: ObservableObject {
         "green olive", "butter", "granola", "cranberry", "flakes",
         "basmati rice", "basil", "black olive", "olive oil", "pickle",
         "spinach", "sliced cucumber", "cherry tomatoes", "sliced radish",
-        "raisins", "vinaigrette", "nutritional yeast"
+        "raisins", "vinaigrette", "nutritional yeast", "syrup",
+        "sliced tomato", "sliced red onion", "strawberry jelly",
+        "gold beets", "steamed beets", "carrot sticks", "red radishes",
+        "heirloom tomato", "paprika rosemary tofu", "garbanzo beans"
     ]
 
     static func isHidden(_ name: String) -> Bool {
@@ -107,7 +110,7 @@ final class DiningViewModel: ObservableObject {
 
     /// Dishes that are always notable, even if they contain an excluded word
     /// (e.g. "Chicken Alfredo Sauce" carries "sauce" but is a real entrée).
-    static let notableAllowlist: [String] = ["chicken alfredo sauce", "pesto alfredo sauce"]
+    static let notableAllowlist: [String] = ["chicken alfredo sauce", "pesto alfredo sauce", "alfredo sauce"]
 
     static func isNotable(_ name: String) -> Bool {
         let lowered = name.lowercased()
@@ -501,7 +504,7 @@ struct DiningView: View {
                 } header: {
                     Text(section.hall.name)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.heading)
+                        .foregroundStyle(Theme.readableBlue)
                         .textCase(nil)
                 }
             }
@@ -758,7 +761,7 @@ struct MenuResultView: View {
                     Text("Filters")
                 }
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.heading)
+                .foregroundStyle(Theme.readableBlue)
                 .textCase(nil)
             }
 
@@ -766,8 +769,13 @@ struct MenuResultView: View {
                 let isExpanded = expandedMeals.contains(entry.id)
                 Section {
                     if isExpanded {
-                        ForEach(items) { item in
-                            MenuItemRow(item: item)
+                        ForEach(MenuPeriod.groupedByStation(items)) { station in
+                            if !station.name.isEmpty {
+                                StationHeaderRow(name: station.name)
+                            }
+                            ForEach(station.items) { item in
+                                MenuItemRow(item: item)
+                            }
                         }
                     }
                 } header: {
@@ -787,7 +795,7 @@ struct MenuResultView: View {
                                 .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         }
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.heading)
+                        .foregroundStyle(Theme.readableBlue)
                         .textCase(nil)
                         .contentShape(Rectangle())
                     }
@@ -973,6 +981,24 @@ struct TruncationNoticeRow: View {
                 .minimumScaleFactor(0.85)
         }
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+}
+
+// MARK: - Station header row
+
+/// A small station label (e.g. "Center Plate", "Griddle/Grill") that sits above
+/// the dishes served at it, mirroring the way Cal Dining groups a meal's menu.
+struct StationHeaderRow: View {
+    let name: String
+
+    var body: some View {
+        Text(name)
+            .font(.caption.weight(.semibold))
+            .textCase(.uppercase)
+            .foregroundStyle(Theme.californiaGold)
+            .padding(.top, 6)
+            .padding(.bottom, 1)
+            .listRowSeparator(.hidden)
     }
 }
 
