@@ -247,6 +247,9 @@ struct LibraryView: View {
         }
         // Tighten the gap between the filter section and the first library card.
         .listSectionSpacing(8)
+        // Trim the List's default top inset so the day/search bar sits closer
+        // to the "Libraries" title, matching the Dining tab.
+        .contentMargins(.top, 6, for: .scrollContent)
     }
 
     private func row(for library: Library) -> some View {
