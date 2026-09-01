@@ -49,7 +49,8 @@ final class LibraryViewModel: ObservableObject {
         "Main (Gardner) Stacks",
         "Business Library",
         "Engineering & Mathematical Sciences Library",  // shown as "Grimes (…)"
-        "East Asian Library"
+        "East Asian Library",
+        "Moffitt Library"
     ]
 
     /// A library's position among the pinned branches, or a value past the end
