@@ -14,8 +14,6 @@ struct GameView: View {
     private let tileCount = 9
     /// Background for a tile the player mistakenly tapped.
     private static let missRed = Color(red: 0.78, green: 0.12, blue: 0.12)
-    /// The deep blue of the Cal logo, sampled from its artwork.
-    private static let calBlue = Color(red: 0.075, green: 0.157, blue: 0.447)
     /// How long a round lasts, in seconds.
     private let roundLength = 10
 
@@ -49,8 +47,23 @@ struct GameView: View {
                 controlButton
             }
             .padding(16)
-            .navigationTitle("Track Whac-A-Mole!")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 8) {
+                        // Small BT badge, so the logo reads on any nav-bar appearance.
+                        Image("AppLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
+                            .padding(4)
+                            .background(Theme.berkeleyBlue, in: RoundedRectangle(cornerRadius: 6))
+                        Text("What-A-Mole!")
+                            .font(.headline)
+                            .foregroundStyle(Theme.heading)
+                    }
+                }
+            }
             .overlay {
                 if showCelebration {
                     celebration
@@ -151,8 +164,8 @@ struct GameView: View {
             .overlay(
                 Group {
                     if isActive {
-                        // Fill the whole tile with Oski (cropped to fit).
-                        Image("Oski")
+                        // Fill the whole tile with the BT logo (cropped to fit).
+                        Image("AppLogo")
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -181,7 +194,7 @@ struct GameView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(Self.calBlue, in: RoundedRectangle(cornerRadius: 12))
+                .background(Theme.control, in: RoundedRectangle(cornerRadius: 12))
                 .foregroundStyle(.white)
         }
     }
@@ -256,15 +269,17 @@ struct GameView: View {
 
 // MARK: - Celebration pieces
 
-/// A big photo of Oski that gently pulses, the star of the party.
+/// A big BT badge that gently pulses, the star of the party.
 private struct BouncingOski: View {
     @State private var pulse = false
 
     var body: some View {
-        Image("Oski")
+        Image("AppLogo")
             .resizable()
-            .scaledToFill()
+            .scaledToFit()
+            .padding(18)
             .frame(width: 96, height: 96)
+            .background(Theme.berkeleyBlue)
             .clipShape(Circle())
             .overlay(Circle().stroke(Theme.californiaGold, lineWidth: 3))
             .scaleEffect(pulse ? 1.12 : 0.9)
@@ -295,7 +310,7 @@ private struct ConfettiView: View {
 private struct ConfettiPiece: View {
     let bounds: CGSize
 
-    /// Berkeley blue and gold, as on the admit letter.
+    /// The app's own teal palette.
     private static let palette: [Color] = [
         Theme.californiaGold, Theme.californiaGold, Theme.berkeleyBlue, Theme.foundersRock
     ]
