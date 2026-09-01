@@ -116,13 +116,6 @@ struct EventsView: View {
                     eventList
                 }
             }
-            // Pinning the filter bar as a top safe-area inset (rather than a
-            // sibling in a VStack) keeps it reliably laid out across tab switches
-            // and alongside `.searchable`, where the old VStack could drop the
-            // chips after navigating away and back.
-            .safeAreaInset(edge: .top, spacing: 0) {
-                typeBar
-            }
             .navigationTitle("Campus Events")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $model.searchText, prompt: "Search events")
@@ -162,9 +155,10 @@ struct EventsView: View {
 
     // MARK: - Category filter
 
-    // Hosted via `.safeAreaInset` so the bar and its "All" chip are present and
-    // tappable the moment the tab opens; the category chips fill in as soon as
-    // the feed arrives.
+    // Hosted as the first row of the events List rather than a `.safeAreaInset`:
+    // inside a TabView, an inset's content could vanish after switching tabs and
+    // coming back. As a List row the bar shares the List's lifecycle, so it stays
+    // put and simply scrolls with the content.
     private var typeBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -178,13 +172,8 @@ struct EventsView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, 4)
         }
-        // Pin the height so the greedy List sibling can't compress the bar to a
-        // near-zero strip — the old behavior left the chips clipped out of view
-        // while still (confusingly) tappable in the top sliver.
-        .frame(height: 56)
-        .background(.bar)
     }
 
     private func chip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
@@ -194,9 +183,8 @@ struct EventsView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
-                    // Matches the Game tab's "Start round" button (the Cal-logo blue).
                     Capsule().fill(isSelected
-                        ? Color(red: 0.075, green: 0.157, blue: 0.447)
+                        ? Theme.control
                         : Color.primary.opacity(0.14))
                 )
                 .overlay(
@@ -213,6 +201,13 @@ struct EventsView: View {
 
     private var eventList: some View {
         List {
+            Section {
+                typeBar
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
             ForEach(model.groupedByDay, id: \.day) { group in
                 Section {
                     ForEach(group.events) { event in
