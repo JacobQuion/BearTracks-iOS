@@ -19,9 +19,12 @@ struct ContentView: View {
     /// the splash — the Library tab is then already loaded when the user opens it.
     @StateObject private var libraryModel = LibraryViewModel()
 
+    /// The section currently on screen, chosen from the bottom drop-up menu.
+    @State private var section: AppSection = .dining
+
     var body: some View {
         ZStack {
-            tabs
+            main
 
             if showingSplash {
                 SplashView()
@@ -37,51 +40,104 @@ struct ContentView: View {
         }
     }
 
-    private var tabs: some View {
-        TabView {
-            DiningView()
-                .tabItem {
-                    Label("Dining", systemImage: "fork.knife")
-                }
-
-            LibraryView(model: libraryModel)
-                .tabItem {
-                    Label("Library", systemImage: "books.vertical")
-                }
-
-            GymView()
-                .tabItem {
-                    Label("Gym", systemImage: "dumbbell")
-                }
-
-            EventsView()
-                .tabItem {
-                    Label("Events", systemImage: "calendar")
-                }
-
-            GameView()
-                .tabItem {
-                    Label("Game", systemImage: "gamecontroller.fill")
-                }
+    /// All sections are kept alive and stacked; only the chosen one is visible
+    /// and interactive, so switching between them preserves each screen's state
+    /// (scroll position, loaded data) the way the old tab bar did. The drop-up
+    /// menu lives in a bottom safe-area inset so it never covers content.
+    private var main: some View {
+        ZStack {
+            ForEach(AppSection.allCases) { item in
+                view(for: item)
+                    .opacity(section == item ? 1 : 0)
+                    .allowsHitTesting(section == item)
+                    .zIndex(section == item ? 1 : 0)
+            }
         }
-        .tint(Theme.californiaGold)
+        .safeAreaInset(edge: .bottom) {
+            sectionMenu
+        }
+    }
+
+    @ViewBuilder
+    private func view(for section: AppSection) -> some View {
+        switch section {
+        case .dining: DiningView()
+        case .library: LibraryView(model: libraryModel)
+        case .gym: GymView()
+        case .events: EventsView()
+        case .lectures: LecturesView()
+        case .game: GameView()
+        }
+    }
+
+    /// A single control that replaces the tab bar: it shows the current section
+    /// and, when tapped, opens a menu upward listing every section.
+    private var sectionMenu: some View {
+        Menu {
+            Picker("Section", selection: $section) {
+                ForEach(AppSection.allCases) { item in
+                    Label(item.title, systemImage: item.icon).tag(item)
+                }
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: section.icon)
+                Text(section.title)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .font(.headline)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(Theme.control, in: Capsule())
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
+        }
     }
 }
 
-/// The branded launch screen: the BearTracks logo centered on its own navy,
-/// with a small "not affiliated" disclaimer pinned to the bottom.
-struct SplashView: View {
-    /// The logo's own navy background, sampled from the artwork (sRGB, no color
-    /// profile) so the page and logo blend seamlessly with no faint square.
-    private static let logoNavy = Color(red: 0.0118, green: 0.1294, blue: 0.2784)
+/// The app's top-level sections, surfaced through the bottom drop-up menu.
+enum AppSection: String, CaseIterable, Identifiable {
+    case dining, library, gym, events, lectures, game
 
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .dining: "Dining"
+        case .library: "Library"
+        case .gym: "Gym"
+        case .events: "Events"
+        case .lectures: "Lectures"
+        case .game: "Easter Egg Game"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .dining: "fork.knife"
+        case .library: "books.vertical"
+        case .gym: "dumbbell"
+        case .events: "calendar"
+        case .lectures: "graduationcap"
+        case .game: "gamecontroller.fill"
+        }
+    }
+}
+
+/// The branded launch screen: the BearTracks logo centered on the app's dark
+/// blue, with a small "not affiliated" disclaimer pinned to the bottom.
+struct SplashView: View {
     var body: some View {
         ZStack {
-            Self.logoNavy.ignoresSafeArea()
+            Theme.berkeleyBlue.ignoresSafeArea()
 
             VStack {
                 Spacer()
-                Image("BearTracksLogo")
+                Image("AppLogo")
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: 260)
